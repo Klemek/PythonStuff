@@ -59,6 +59,10 @@ def save_byte(name, data):
         f.write(bytearray(data))
 
 
+def get_int(b):
+    return int((b * 8)[:8], 2)
+
+
 def n2b(num, nbyte=4):
     b = []
     for i in range(nbyte):
@@ -151,139 +155,158 @@ def get_data(b):
 
 
 def get_bw_bmp_data(b, width):
+    return get_grey_bmp_data(b, width, 1)
+
+
+def get_grey_bmp_data(b, width, l):
     data = []
     for n in range(width * width):
-        c = 0
-        if b[n] == '1':
-            c = 255
+        c = get_int(b[n * l:(n + 1) * l])
         data += [c, c, c]  # grey
     return data
 
 
-def get_grey_bmp_data(b, width):
+def get_color_bmp_data(b, width, l):
     data = []
-    for n in range(width * width):
-        c = b[n * 8:(n + 1) * 8]
-        data += [int(c, 2), int(c, 2), int(c, 2)]  # grey
+    for n in range(int(width * width)):
+        c1 = get_int(b[(3 * n) * l:(3 * n + 1) * l])
+        c2 = get_int(b[(3 * n + 1) * l:(3 * n + 2) * l])
+        c3 = get_int(b[(3 * n + 2) * l:(3 * n + 3) * l])
+        data += [c1, c2, c3]  # grey
     return data
 
 
-DIGIT_FILE = "pi1000000.txt"
-BIN_FILE = "pi1000000bin.txt"
+def main():
+    DIGIT_FILE = "pi1000000.txt"
+    BIN_FILE = "pi1000000bin.txt"
+    bpi = ""
+    if os.path.isfile(BIN_FILE):
+        print("loading dichotomy...")
+        bpi = load(BIN_FILE)
+    elif os.path.isfile(DIGIT_FILE):
+        print("computing dichotomy (this might take a while)...")
+        bpi = do_dich(DIGIT_FILE)
+        print("saving dichotomy...")
+        save(BIN_FILE, bpi)
+    else:
+        print(DIGIT_FILE, "was not found")
+        exit(1)
+    print(len(bpi), "bits of dichotomy in memory")
+    print()
+    print("verifying dichotomy...")
+    if not (verify_dich(bpi)):
+        print("could not verify dichotomy you may delete the file ", BIN_FILE)
+        exit(1)
+    print()
+    print("modes :")
+    print("1:binary file")
+    print("2:black & white bitmap file")
+    print("3:grey scale bitmap file")
+    print("4:color scale bitmap file")
+    print("5:wave file")
+    mode = tryparse_int(input("select a mode : "))
+    print()
+    if mode == 1:
+        defname = "pi_bin"
+        name = input("enter file name : [{}] ".format(defname)).strip()
+        if len(name) == 0:
+            name = defname
+        print("getting data...")
+        data = get_data(bpi)
+        print("saving to file '" + name + "' ...")
+        save_byte(name, data)
+        print("saved to file '" + name + "'")
+    elif mode == 2:
+        maxw = int(math.sqrt(len(bpi)))
+        width = tryparse_int(input("enter image width (max:{0}): [{0}] ".format(maxw)))
+        if width is None or width > maxw or width < 1:
+            width = maxw
+        defname = "pi_bw_{}.bmp".format(width)
+        name = input("enter file name : [{}] ".format(defname)).strip()
+        if len(name) == 0:
+            name = defname
+        if not (name.endswith(".bmp")):
+            name += ".bmp"
+        print("getting data...")
+        data = get_bw_bmp_data(bpi, width)
+        print("saving to file '" + name + "' ...")
+        save_bmp(name, data, width)
+        print("saved to file '" + name + "'")
+    elif mode == 3:
+        l = tryparse_int(input("enter grey depth (max:8): [8] "))
+        if l is None or l > 8:
+            l = 8
+        if l < 1:
+            l = 1
+        maxw = int(math.sqrt(len(bpi)) / l)
+        width = tryparse_int(input("enter image width (max:{0}): [{0}] ".format(maxw)))
+        if width is None or width > maxw or width < 1:
+            width = maxw
+        defname = "pi_grey_{}_{}.bmp".format(l, width)
+        name = input("enter file name : [{}] ".format(defname)).strip()
+        if len(name) == 0:
+            name = defname
+        if not (name.endswith(".bmp")):
+            name += ".bmp"
+        print("getting data...")
+        data = get_grey_bmp_data(bpi, width, l)
+        print("saving to file '" + name + "' ...")
+        save_bmp(name, data, width)
+        print("saved to file '" + name + "'")
+    elif mode == 4:
+        l = tryparse_int(input("enter color depth (max:8): [8] "))
+        if l is None or l > 8:
+            l = 8
+        if l < 1:
+            l = 1
+        maxw = int(math.sqrt(len(bpi)) / (l * 3))
+        width = tryparse_int(input("enter image width (max:{0}): [{0}] ".format(maxw)))
+        if width is None or width > maxw or width < 1:
+            width = maxw
+        defname = "pi_color_{}_{}.bmp".format(l, width)
+        name = input("enter file name : [{}] ".format(defname)).strip()
+        if len(name) == 0:
+            name = defname
+        if not (name.endswith(".bmp")):
+            name += ".bmp"
+        print("getting data...")
+        data = get_color_bmp_data(bpi, width, l)
+        print("saving to file '" + name + "' ...")
+        save_bmp(name, data, width)
+        print("saved to file '" + name + "'")
+    elif mode == 5:
+        channels = tryparse_int(input("number of channels (max:6) : [1] "))
+        if channels is None or channels <= 0:
+            channels = 1
+        if channels > 6:
+            channels = 6
+        freq = tryparse_int(input("frequency (1->11k, 2->22k, 3->44.1k, 4->48k 5->96k) : [3] "))
+        if freq is None:
+            freq = 3
+        if freq <= 0:
+            freq = 1
+        if freq > 5:
+            freq = 5
+        freq = int(11025 * math.pow(2, freq - 1))
+        bps = tryparse_int(input("bits per sample (1->8, 2->16, 3->24) : [1] "))
+        if bps is None or bps <= 0:
+            bps = 1
+        if bps > 3:
+            bps = 6
+        bps *= 8
+        defname = "pi_{}_{}_{}.wav".format(channels, bps, int(freq / 1000))
+        name = input("enter file name : [{}] ".format(defname)).strip()
+        if len(name) == 0:
+            name = defname
+        if not (name.endswith(".wav")):
+            name += ".wav"
+        print("getting data...")
+        data = get_data(bpi)
+        print("saving to file '" + name + "' ...")
+        save_wav(name, data, channels, freq, bps)
+        print("saved to file '" + name + "'")
+    print()
+    print("goodbye")
 
-bpi = ""
 
-if os.path.isfile(BIN_FILE):
-    print("loading dichotomy...")
-    bpi = load(BIN_FILE)
-elif os.path.isfile(DIGIT_FILE):
-    print("computing dichotomy (this might take a while)...")
-    bpi = do_dich(DIGIT_FILE)
-    print("saving dichotomy...")
-    save(BIN_FILE, bpi)
-else:
-    print(DIGIT_FILE, "was not found")
-    exit(1)
-print(len(bpi), "bits of dichotomy in memory")
-print()
-print("verifying dichotomy...")
-if not (verify_dich(bpi)):
-    print("could not verify dichotomy you may delete the file ", BIN_FILE)
-    exit(1)
-print()
-print("modes :")
-print("1:binary file")
-print("2:black & white bitmap file")
-print("3:grey scale bitmap file")
-print("4:wave file")
-mode = tryparse_int(input("select a mode : "))
-
-print()
-if mode == 1:
-    defname = "pi_bin"
-    name = input("enter file name : [{}] ".format(defname)).strip()
-    if len(name) == 0:
-        name = defname
-
-    print("getting data...")
-    data = get_data(bpi)
-    print("saving to file '" + name + "' ...")
-    save_byte(name, data)
-    print("saved to file '" + name + "'")
-
-elif mode == 2:
-    maxw = int(math.sqrt(len(bpi)))
-    width = tryparse_int(input("enter image width (max:{0}): [{0}] ".format(maxw)))
-    if width is None or width > maxw or width < 1:
-        width = maxw
-
-    defname = "pi_bw_{}.bmp".format(width)
-    name = input("enter file name : [{}] ".format(defname)).strip()
-    if len(name) == 0:
-        name = defname
-    if not (name.endswith(".bmp")):
-        name += ".bmp"
-
-    print("getting data...")
-    data = get_bw_bmp_data(bpi, width)
-    print("saving to file '" + name + "' ...")
-    save_bmp(name, data, width)
-    print("saved to file '" + name + "'")
-
-elif mode == 3:
-    maxw = int(math.sqrt(len(bpi)) / 8)
-    width = tryparse_int(input("enter image width (max:{0}): [{0}] ".format(maxw)))
-    if width is None or width > maxw or width < 1:
-        width = maxw
-
-    defname = "pi_grey_{}.bmp".format(width)
-    name = input("enter file name : [{}] ".format(defname)).strip()
-    if len(name) == 0:
-        name = defname
-    if not (name.endswith(".bmp")):
-        name += ".bmp"
-
-    print("getting data...")
-    data = get_grey_bmp_data(bpi, width)
-    print("saving to file '" + name + "' ...")
-    save_bmp(name, data, width)
-    print("saved to file '" + name + "'")
-
-elif mode == 4:
-    channels = tryparse_int(input("number of channels (max:6) : [1] "))
-    if channels is None or channels <= 0:
-        channels = 1
-    if channels > 6:
-        channels = 6
-
-    freq = tryparse_int(input("frequency (1->11k, 2->22k, 3->44.1k, 4->48k 5->96k) : [3] "))
-    if freq is None:
-        freq = 3
-    if freq <= 0:
-        freq = 1
-    if freq > 5:
-        freq = 5
-    freq = int(11025 * math.pow(2, freq - 1))
-
-    bps = tryparse_int(input("bits per sample (1->8, 2->16, 3->24) : [1] "))
-    if bps is None or bps <= 0:
-        bps = 1
-    if bps > 3:
-        bps = 6
-    bps *= 8
-
-    defname = "pi_{}_{}_{}.wav".format(channels, bps, int(freq / 1000))
-    name = input("enter file name : [{}] ".format(defname)).strip()
-    if len(name) == 0:
-        name = defname
-    if not (name.endswith(".wav")):
-        name += ".wav"
-
-    print("getting data...")
-    data = get_data(bpi)
-    print("saving to file '" + name + "' ...")
-    save_wav(name, data, channels, freq, bps)
-    print("saved to file '" + name + "'")
-
-print()
-print("goodbye")
+main()
