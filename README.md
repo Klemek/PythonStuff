@@ -3,6 +3,7 @@ Where I store small Python projects
 
 * [EZ Net](#ez-net)
 * [Graph (french)](#graph-french-)
+* [Labyrinth](#labyrinth)
 * [PI Dichotomy](#pi-dichotomy)
 
 
@@ -15,6 +16,11 @@ You know what a pain it is to divide a network into subnetworks ? Not anymore wi
 A tool to make beautiful mathematical curves
 
 ![preview](graph/preview.jpg)
+
+## Labyrinth
+Encode a text into a labyrinth image like this :
+
+![preview](labyrinth/preview.jpg)
 
 ## PI Dichotomy
 What happens when you execute dichotomy on PI starting with 4 ? Result : an infinite binary data, i used it to generate bitmaps and sound.
